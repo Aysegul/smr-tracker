@@ -6,7 +6,7 @@ function display.update()
    -- resize display ?
    if ui.resize then
       if options.display >= 1 then
-         widget.geometry = qt.QRect{x=100,y=100,width=720+options.boxw/options.downs*#ui.classes,height=780}
+         widget.geometry = qt.QRect{x=100,y=100,width=640+options.boxw/options.downs,height=520}
       else
          widget.geometry = qt.QRect{x=100,y=100,width=720,height=780}
       end
@@ -43,7 +43,7 @@ function display.update()
 
 
    for _,res in ipairs(state.resultsSMR) do
-      local color = ui.colors[res.id]
+      local color = 'red'
       local legend = res.class
       local w = res.w
       local h = res.h
@@ -62,8 +62,8 @@ function display.update()
    -- draw a circle around mouse
    _mousetic_ = ((_mousetic_ or -1) + 1) % 2
    if ui.mouse and _mousetic_==1 then
-      local color = ui.colors[ui.currentId]
-      local legend = 'learning [' .. ui.currentClass .. ']'
+      local color = 'blue'
+      local legend = 'learning object'
       local x = ui.mouse.x
       local y = ui.mouse.y
       local w = options.boxw
@@ -92,7 +92,6 @@ function display.update()
                        zoom=window_zoom}
       end	
    end
-   ui.proc()
    profiler:lap('display')
 end
 
@@ -117,7 +116,7 @@ end
 
 function display.log()
    x = 400
-   local y = state.input:size(2)*window_zoom+20
+   local y = state.input:size(1)*window_zoom+20
    painter:moveto(x,y) painter:show('-------------- log ---------------')
    for i = 1,#state.log do
       local txt = state.log[#state.log-i+1].str

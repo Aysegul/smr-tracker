@@ -64,7 +64,7 @@ else
       -- color can be a class id (number) or a color name (string)
       print(str)
       if type(color) == 'number' then
-         color = ui.colors[color]
+         color = 'blue'
       end
       table.insert(state.log,{str=str, color=color or 'black'})
    end

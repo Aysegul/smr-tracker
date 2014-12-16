@@ -134,7 +134,7 @@ local function process()
            ref_lx = math.min(math.max(state.learn.x-boxw/2,0),state.input:size(2)-boxw)
            ref_ty = math.min(math.max(state.learn.y-boxh/2,0),state.input:size(1)-boxh)
       end
-      state.logit('adding [' .. state.learn.class .. '] at ' .. ref_lx
+      state.logit('adding object at ' .. ref_lx
                   .. ',' .. ref_ty, state.learn.id)
       -- and create a result !!
       local nresult = {lx=ref_lx, ty=ref_ty, w=boxw, 
