@@ -1,3 +1,4 @@
+
 local source = {}
 -- camera source, rescaler, color space
 if options.source == 'camera' then
@@ -5,9 +6,9 @@ if options.source == 'camera' then
    source = image.Camera{}
 elseif options.source == 'video' then
    require 'ffmpeg'
-   source = ffmpeg.Video{path=options.video, width=options.width,
+   source = ffmpeg.Video{path=options.dspath, width=options.width,
                          height=options.height, fps=options.fps,
-                         length=options.length}
+                         length=options.length, delete = false}
 elseif options.source == 'dataset' then
    require 'ffmpeg'
    source = ffmpeg.Video{path=options.dspath, encoding=options.dsencoding,
