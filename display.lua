@@ -81,16 +81,14 @@ function display.update()
    if options.display >= 1 then
       local sizew = options.boxw/options.downs
       local sizeh = options.boxh/options.downs
-
-    
-	   for k,proto in ipairs(state.lastPatch) do
-         image.display{image=proto.patchYUV,
+	   --[[if state.lastPatch:dim() > 0 then
+         image.display{image=state.lastPatch,
                        legend='last patch',
                        win=painter,
                        x=state.input:size(2)+32,
                        y= 10,
                        zoom=window_zoom}
-      end	
+      end	]]
    end
    profiler:lap('display')
 end

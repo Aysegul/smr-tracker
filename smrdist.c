@@ -10,10 +10,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define max(a,b)  ((a)>(b) ? (a) : (b))
-#define abs(a)    (a) < 0 ? -(a) : (a)
-#define square(a) (a)*(a)
 
+#define abs(a)    (a) < 0 ? -(a) : (a)
 
 static int dist_smr(lua_State * L) 
 {
@@ -34,10 +32,14 @@ static int dist_smr(lua_State * L)
    float *kernel = THFloatTensor_data(kernel_ptr);
    
    // dims
-   int iwidth  = input_ptr->size[1];
    int kheight = kernel_ptr->size[0];
    int kwidth  = kernel_ptr->size[1];
-   int owidth  = output_ptr->size[1];
+
+   //strides
+   long *is = input_ptr->stride;
+   long *ks = kernel_ptr->stride;
+   long *os = output_ptr->stride;
+
   
    // similarity matching ratio (SMR)
    int i, j, x, y, pos;
@@ -46,16 +48,16 @@ static int dist_smr(lua_State * L)
    for(y = begin_y; y < end_y; y++) {
       for(x = begin_x; x < end_x; x++) {
         
-         pos = y*iwidth+x;
+         pos = y*is[0]+x*is[1];
          probability = 0;
          for(j=0; j< kheight; j++) {
             for(i=0; i< kwidth; i++) {
-               distance = abs(input[pos+j*iwidth+i]-kernel[j*kwidth+i]);
+               distance = abs(input[ pos+j*is[0]+i*is[1] ]- kernel[ j*ks[0]+i*ks[1] ]);
                if (distance<dynamic/2)
                   probability = probability + exp(-2*distance);
               }
          }
-         output[y*owidth+x] = probability;
+         output[y*os[0]+x*os[1]] = probability;
       }
    }
    lua_newtable(L);           // result = {}
