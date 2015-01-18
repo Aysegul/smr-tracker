@@ -22,6 +22,7 @@ function GetMax(a)
 	return y,x_out,y_out 
 end
 
+
 -- Search the local area, if the object is lost
 -- increase the search area by 1 every frame
 function SMRtracker(patch)     
@@ -39,8 +40,11 @@ function SMRtracker(patch)
    end
    lifetime = lifetime + 1
 
--- Call for the coroutines of SMR algorithm. state.SMRProb is filled with the similarity matching value 
-coordinate = smr_dist.smr(state.SMRProb, state.input, patch, state.dynamic, begin_x, end_x, begin_y, end_y) 
+   -- Call for the coroutines of SMR algorithm. state.SMRProb is filled with the similarity matching value
+   state.SMRProb:fill(0)
+   smr_dist.smr(state.SMRProb, state.input, patch, state.dynamic, begin_x, end_x, begin_y, end_y)
+
+
 end
 
 -- grab camera frames, and track the object
@@ -54,15 +58,11 @@ local function process()
     ------------------------------------------------------------
     -- (1) SMR probability map
     ------------------------------------------------------------   
-    state.SMRProb:resize(math.floor(state.input:size(1)-boxh)+1, 
-           math.floor(state.input:size(2)-boxw)+1):fill(0)   
-    for i,proto in pairs(state.lastPatch) do
-     	
-        SMRtracker(proto.patchYUV)
- 
+    state.SMRProb = torch.Tensor(math.floor(state.input:size(1)-boxh)+1, math.floor(state.input:size(2)-boxw)+1 ):fill(0)
+    if state.lastPatch:dim() > 0 then
+        SMRtracker(state.lastPatch)
         state.resultsSMR = {}     
-        value, px_nxt, py_nxt = GetMax(state.SMRProb) 
-
+        value, px_nxt, py_nxt = GetMax(state.SMRProb)
         local lx = math.min(math.max(0,(px_nxt-1)+1),state.input:size(2)-boxw+1)
         local ty = math.min(math.max(0,(py_nxt-1)+1),state.input:size(1)-boxh+1)  
         
@@ -71,8 +71,8 @@ local function process()
         window =8 
         state.SMRProb:narrow(2, math.max(px_nxt-window, 1), math.min(2*window, state.SMRProb:size(2)-px_nxt+window-1)):
            narrow(1, math.max(py_nxt-window, 1), math.min(2*window,state.SMRProb:size(1)-py_nxt+window-1)):zero()
-        dynamic_th = torch.max(state.SMRProb)
-        
+        dynamic_th = state.SMRProb:max()
+
         -- Dynamic thresholding
         if (lost == 0) then 
           if(lx>=extension) and (ty>=extension) and (lx+boxw/downs)<=(state.input:size(2)-extension) and (ty+boxh/downs)<=(state.input:size(1)-extension-1) then
@@ -90,7 +90,8 @@ local function process()
        end  
 
       -- Accept or reject the detection
-      if (value[1][1]>(threshold*dynamic_th)) or  (value[1][1]>dynamic_th+100) then
+      if  (value[1][1]>(threshold*dynamic_th)) or  (value[1][1]>dynamic_th+100) then
+
          lifetime = 0
          if (threshold == 1.25) then 
             disappear = 0
@@ -108,14 +109,15 @@ local function process()
       -- A better template update mechanism is necessary to handle the occlusions.  
         for _,res in ipairs(state.resultsSMR) do
             if(res.lx>=2*extension) and (res.ty>=2*extension) and (res.lx+boxw)<state.YUVFrame:size(3)+extension-1 and (res.ty+boxh)<state.YUVFrame:size(2)+extension-1 then
-               local patchYUV = state.input:narrow(2,res.lx,boxw):narrow(1,res.ty,boxh):clone()
-               for i,proto in pairs(state.lastPatch) do
-                  difference = torch.abs(proto.patchYUV - patchYUV)     
+               local patchYUV = torch.Tensor(boxh, boxw):fill(0)
+               patchYUV:copy(state.input[{ {res.ty, boxh+res.ty-1},{res.lx,boxw+res.lx-1}}])
+
+              if state.lastPatch:dim() > 0 then
+                  difference = (state.lastPatch:add(-1, patchYUV)):abs()
                   if (difference:max()/2)~=0 then
-                     state.dynamic=math.max(difference:max()/2)
+                    state.dynamic=(difference:max()/2)
                   end
-       	          state.lastPatch = {}
-      	          table.insert(state.lastPatch, {patchYUV=patchYUV})
+                  state.lastPatch:copy(patchYUV)
                end  
             end   
         end
@@ -139,13 +141,13 @@ local function process()
       -- and create a result !!
       local nresult = {lx=ref_lx, ty=ref_ty, w=boxw, 
                        h=boxh, class=state.classes[state.learn.id], 
-                       id=state.learn.id, source=6}   
+                       id=state.learn.id, source=6}
       table.insert(state.resultsSMR, nresult)            
          
       -- save a patch 
-      local patchYUV = state.input:narrow(2,ref_lx,boxw):narrow(1,ref_ty,boxh):clone()
-      state.lastPatch = {}
-      table.insert(state.lastPatch, {patchYUV=patchYUV})
+      local patchYUV = torch.Tensor(boxh, boxw):fill(0)
+	    patchYUV:copy(state.input[{ {ref_ty, boxh+ref_ty-1},{ref_lx,boxw+ref_lx-1}}])
+        state.lastPatch = patchYUV:clone()
       -- done
       state.learn = nil
       profiler:lap('learn-new-view')
@@ -160,7 +162,7 @@ local function process()
          state.dsoutfile:writeString(res.lx .. ',' .. res.ty .. ',' ..
                                      res.lx+res.w .. ',' .. res.ty+res.h)
       else
-         state.dsoutfile:writeString('NaN,NaN,NaN,Nan')
+         state.dsoutfile:writeString('NaN,NaN,NaN,NaN')
       end
       state.dsoutfile:writeString('\n')
    end

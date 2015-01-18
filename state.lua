@@ -12,7 +12,7 @@ state.resultsSMR = {}
 
 -- stores an image patch and its associated dense features (prototype)
 
-state.lastPatch = {}
+state.lastPatch = torch.Tensor()
 state.totalProb = torch.Tensor()
 state.SMRProb = torch.Tensor()
 
