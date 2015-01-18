@@ -10,11 +10,25 @@ elseif options.source == 'video' then
                          height=options.height, fps=options.fps,
                          length=options.length, delete = false}
 elseif options.source == 'dataset' then
-   require 'ffmpeg'
-   source = ffmpeg.Video{path=options.dspath, encoding=options.dsencoding,
-                         loaddump=true, load=false}
-   options.width = source.width
-   options.height = source.height
+   require 'image'
+   local image_names = paths.dir(options.dspath, 'r')
+   image_paths = {}
+   -- filter files and remove non-images
+   for i=1, #image_names do
+      if image_names[i]=='.' then
+         -- ignore
+      elseif image_names[i] == '..' then
+         -- ignore
+      elseif string.find(image_names[i], "txt") then
+         -- ignore
+      else
+         table.insert(image_paths, options.dspath..'/'..image_names[i])
+      end
+   end
+   local tmp_img = image.load(image_paths[1])
+
+   options.width = tmp_img:size(3)
+   options.height = tmp_img:size(2)
 
    local gtfile = torch.DiskFile(sys.concat(options.dspath,'init.txt'),'r')
    if options.dsoutput then
@@ -35,6 +49,13 @@ elseif options.source == 'dataset' then
    gt.file:close()
    gt.file = torch.DiskFile(sys.concat(options.dspath,'gt.txt'),'r')
    source.gt = gt
+   local index = 1
+   source.nframes = #image_paths
+   source.forward = function()
+                      img = image.load(image_paths[index])
+                      index = index + 1
+                      return img
+                    end
 
    local oldforward = source.forward
    local function gtwrap(self)
@@ -64,7 +85,7 @@ if options.source == 'dataset' or options.source == 'video' then
    source.forward = finishwrap
 end
 
-source.rgb2yuv = nn.SpatialColorTransform('rgb2yuv')
+source.rgb2yuv = nn.SpatialColorTransform('rgb2y')
 function source.setdowns(downs)
    -- originally owidth and oheight had +3, not sure why, removed for now
    source.rescaler = nn.SpatialReSampling{owidth=options.width/downs,
@@ -74,7 +95,6 @@ source.setdowns(options.downs)
 
 extension = 20
 function source:getframe()
-   -- store previous frame
    -- capture next frame
    state.rawFrame = self:forward()
    state.rawFrame = state.rawFrame:float()
